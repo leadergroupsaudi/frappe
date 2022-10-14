@@ -254,7 +254,7 @@ class LoginManager:
 
 		if not user.is_authenticated:
 			tracker and tracker.add_failure_attempt()
-			self.fail("Invalid login credentials", user=user.name)
+			self.fail(_("Invalid login credentials"), user=user.name)
 		elif not (user.name == "Administrator" or user.enabled):
 			tracker and tracker.add_failure_attempt()
 			self.fail("User disabled or missing", user=user.name)
