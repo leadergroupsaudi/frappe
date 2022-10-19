@@ -639,7 +639,7 @@ frappe.provide("frappe.views");
 				title: frappe.utils.html2text(card.title),
 				disable_click: card._disable_click ? 'disable-click' : '',
 				creation: card.creation,
-				doc_content: get_doc_content(card),
+                // doc_content: get_doc_content(card),
 				image_url: cur_list.get_image_url(card),
 				form_link: frappe.utils.get_form_link(card.doctype, card.name)
 			};
