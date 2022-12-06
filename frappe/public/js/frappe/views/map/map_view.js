@@ -30,6 +30,7 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 	}
 
 	render_map_view() {
+		
 		this.map_id = frappe.dom.get_unique_id();
 
 		this.$result.html(`<div id="${this.map_id}" class="map-view-container"></div>`);
@@ -38,9 +39,35 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 		this.map = L.map(this.map_id).setView(frappe.utils.map_defaults.center,
 			frappe.utils.map_defaults.zoom);
 
-		L.tileLayer(frappe.utils.map_defaults.tiles,
-			frappe.utils.map_defaults.options).addTo(this.map);
+		// L.tileLayer(frappe.utils.map_defaults.tiles,
+		// 	frappe.utils.map_defaults.options).addTo(this.map);
 
+		//custom code ersi
+		const apiKey = "AAPKbfebb9d0816d476cab949ed829aef83cQ3uXWwUfQSTtFkaYHH4zDVqXMM1njaqpiM8DNqLjFTsWCtO8qtbD-QgvRZb1B6U-";
+		const token = this.coords.token
+		L.esri.Vector.vectorBasemapLayer("ArcGIS:Streets", {
+			apikey: apiKey
+		}).addTo(this.map);
+
+		L.esri
+        .featureLayer({
+          url: "https://geomed.amana-md.gov.sa/arcgis/rest/services/AppVisualDistortion/VisualDistortion/MapServer/0?token="+token,
+		  color:"black",
+		  opacity: 0.65,
+		weight: 2
+        })
+        .addTo(this.map);
+	
+		L.esri
+        .featureLayer({
+          url: "https://geomed.amana-md.gov.sa/arcgis/rest/services/AppVisualDistortion/VisualDistortion/MapServer/1?token="+token,
+		  color:"red",
+		  opacity: 0.65,
+		weight: 2
+        })
+        .addTo(this.map);
+		//custom code end for esri
+		
 		L.control.scale().addTo(this.map);
 		if (this.coords.features && this.coords.features.length) {	
 			//custom code start here
@@ -53,13 +80,15 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 					coords => L.geoJSON(coords).bindPopup(coords.properties.name).addTo(this.map)
 				);
 			}
-			// custom code end here below commented code is orignal code.
+			//custom code end here below commented code is orignal code.
 			// this.coords.features.forEach(
 			// 	coords => L.geoJSON(coords).bindPopup(coords.properties.name).addTo(this.map)
 			// );
 			let lastCoords = this.coords.features[0].geometry.coordinates.reverse();
 			this.map.panTo(lastCoords, 8);
 		}
+
+		
 	}
 
 	//orignal code
@@ -122,14 +151,12 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 		}
 		
 	}
-
-
 	get required_libs() {
 		return [
 			"assets/frappe/js/lib/leaflet/leaflet.css",
-			"assets/frappe/js/lib/leaflet/leaflet.js"
+			"assets/frappe/js/lib/leaflet/leaflet.js",
+			"assets/frappe/js/lib/leaflet/esri-leaflet.js",
+			"assets/frappe/js/lib/leaflet/esri-leaflet-vector.js"
 		];
 	}
-
-
 };
