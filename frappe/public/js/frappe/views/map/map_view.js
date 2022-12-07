@@ -52,18 +52,18 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 		L.esri
         .featureLayer({
           url: "https://geomed.amana-md.gov.sa/arcgis/rest/services/AppVisualDistortion/VisualDistortion/MapServer/0?token="+token,
-		  color:"black",
+		  color:"blue",
 		  opacity: 0.65,
-		weight: 2
+		  weight: 1
         })
         .addTo(this.map);
 	
 		L.esri
         .featureLayer({
           url: "https://geomed.amana-md.gov.sa/arcgis/rest/services/AppVisualDistortion/VisualDistortion/MapServer/1?token="+token,
-		  color:"red",
+		  color:"#ff726f",
 		  opacity: 0.65,
-		weight: 2
+		weight: 1
         })
         .addTo(this.map);
 		//custom code end for esri
@@ -155,8 +155,8 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 		return [
 			"assets/frappe/js/lib/leaflet/leaflet.css",
 			"assets/frappe/js/lib/leaflet/leaflet.js",
-			"assets/frappe/js/lib/leaflet/esri-leaflet.js",
-			"assets/frappe/js/lib/leaflet/esri-leaflet-vector.js"
+			"assets/foxerp_madinah/js/esri-leaflet.js",
+			"assets/foxerp_madinah/js/esri-leaflet-vector.js"
 		];
 	}
 };
