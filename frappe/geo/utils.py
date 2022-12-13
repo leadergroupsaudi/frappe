@@ -32,7 +32,10 @@ def convert_to_geojson(type, coords):
 		geojson["features"] = merge_location_features_in_one(coords)
 	elif type == "coordinates":
 		geojson["features"] = create_gps_markers(coords)
-
+	
+	#custom code
+	from foxerp_madinah.api.project import get_token
+	geojson["token"] = get_token()
 	return geojson
 
 
@@ -45,6 +48,8 @@ def merge_location_features_in_one(coords):
 			continue
 		for coord in geojson_loc["features"]:
 			coord["properties"]["name"] = element["name"]
+			#custom parameter color
+			coord["properties"]["color"] = element["color"] if element["color"] else ""
 			geojson_dict.append(coord.copy())
 
 	return geojson_dict
@@ -67,13 +72,13 @@ def return_location(doctype, filters_sql):
 	if filters_sql:
 		try:
 			coords = frappe.db.sql(
-				"""SELECT name, location FROM `tab{}`  WHERE {}""".format(doctype, filters_sql), as_dict=True
+				"""SELECT name, location,color FROM `tab{}`  WHERE {}""".format(doctype, filters_sql), as_dict=True
 			)
 		except InternalError:
 			frappe.msgprint(frappe._("This Doctype does not contain location fields"), raise_exception=True)
 			return
 	else:
-		coords = frappe.get_all(doctype, fields=["name", "location"])
+		coords = frappe.get_all(doctype, fields=["name", "location","color"])
 	return coords
 
 

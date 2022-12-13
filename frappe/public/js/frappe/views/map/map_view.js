@@ -51,19 +51,22 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 
 		L.esri
         .featureLayer({
-          url: "https://geomed.amana-md.gov.sa/arcgis/rest/services/AppVisualDistortion/VisualDistortion/MapServer/0?token="+token,
-		  color:"blue",
-		  opacity: 0.65,
-		  weight: 1
+			url: "https://geomed.amana-md.gov.sa/arcgis/rest/services/AppVisualDistortion/VisualDistortion/MapServer/0?token="+token,
+			color:"blue",
+			opacity: 0.65,
+			weight: 1,
+			useCors: false 
         })
         .addTo(this.map);
 	
 		L.esri
         .featureLayer({
-          url: "https://geomed.amana-md.gov.sa/arcgis/rest/services/AppVisualDistortion/VisualDistortion/MapServer/1?token="+token,
-		  color:"#ff726f",
-		  opacity: 0.65,
-		weight: 1
+			url: "https://geomed.amana-md.gov.sa/arcgis/rest/services/AppVisualDistortion/VisualDistortion/MapServer/1?token="+token,
+			color:"#ff726f",
+			opacity: 0.65,
+			weight: 1,
+			useCors: false
+
         })
         .addTo(this.map);
 		//custom code end for esri
@@ -71,15 +74,9 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 		L.control.scale().addTo(this.map);
 		if (this.coords.features && this.coords.features.length) {	
 			//custom code start here
-			if(this.coords.parent_doc && this.coords.parent_doc == "Task"){
-				this.coords.features.forEach(
+			this.coords.features.forEach(
 					coords => coords.properties.child_feature?"":L.geoJSON(coords,{color: coords.properties.color}).bindPopup(coords.properties.display_name+"<br>"+coords.properties.project_name+"<br>"+coords.properties.task_phase).addTo(this.map)
-				);
-			}else{
-				this.coords.features.forEach(
-					coords => L.geoJSON(coords).bindPopup(coords.properties.name).addTo(this.map)
-				);
-			}
+			);
 			//custom code end here below commented code is orignal code.
 			// this.coords.features.forEach(
 			// 	coords => L.geoJSON(coords).bindPopup(coords.properties.name).addTo(this.map)
