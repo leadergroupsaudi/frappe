@@ -153,7 +153,6 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 	
 			});
 		}else{
-			console.log(this.type)
 			return frappe.call({
 				method: get_coords_method,
 				args: {
@@ -162,7 +161,6 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 					type: this.type
 				}
 			}).then(r => {
-				console.log(r.message)
 				this.coords = r.message;
 			});
 		}
