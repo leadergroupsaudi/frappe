@@ -84,11 +84,22 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 				this.coords.features.forEach(
 					coords => coords.properties.child_feature?"":L.geoJSON(coords,{color: coords.properties.color}).bindPopup(coords.properties.display_name+"<br>"+coords.properties.project_name+"<br>"+coords.properties.task_phase).addTo(this.map)
 				);
+			}else if(cur_list && cur_list.doctype =="Incident"){
+				this.coords.features.forEach(
+					coords => coords.properties.child_feature?"":L.geoJSON(coords,{color: coords.properties.color}).bindPopup(coords.properties.display_name).bindTooltip("Total Incident : "+coords.properties.number_of_incidents+"<br>"+coords.properties.display_name+"<br>"+coords.properties.incident_name, {
+						permanent: false,
+						opacity:coords.geometry.type!="Point"?1:0
+					 }).addTo(this.map)
+				);
 			}else{
 				this.coords.features.forEach(
 					coords => coords.properties.child_feature?"":L.geoJSON(coords,{color: coords.properties.color}).bindPopup(coords.properties.name).addTo(this.map)
 				);
 			}
+
+			
+
+
 			//custom code end here below commented code is orignal code.
 			// this.coords.features.forEach(
 			// 	coords => L.geoJSON(coords).bindPopup(coords.properties.name).addTo(this.map)
@@ -139,14 +150,14 @@ frappe.views.MapView = class MapView extends frappe.views.ListView {
 			cur_list.meta.fields.find(i => i.fieldname === "longitude")) {
 			this.type = 'coordinates';
 		}
-		if(this.doctype == "Task"){
+		if(this.doctype == "Task" || this.doctype == "Incident"){
 			return frappe.call({
 				method: 'foxerp_madinah.api.project.get_coords',
 				args: {
-					doctype: "Locations",
+					doctype: this.doctype == "Task" ? "Locations" : "Location",
 					filters: cur_list.filter_area.get(),
-					type: this.type,
-					parent: "Task"
+					type: this.doctype == "Task" ? this.type : "location_field" ,
+					parent: this.doctype
 				}
 			}).then(r => {
 				this.coords = r.message;
