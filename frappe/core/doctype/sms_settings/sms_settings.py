@@ -90,7 +90,6 @@ def send_via_gateway(arg):
 	for d in arg.get("receiver_list"):
 		args[ss.receiver_parameter] = d
 		status = send_request(ss.sms_gateway_url, args, headers, ss.use_post, use_json)
-
 		if 200 <= status < 300:
 			success_list.append(d)
 
@@ -129,6 +128,8 @@ def send_request(gateway_url, params, headers=None, use_post=False, use_json=Fal
 
 	if use_post:
 		response = requests.post(gateway_url, **kwargs)
+		if response.status_code!=200:
+				frappe.throw(response.text)
 	else:
 		response = requests.get(gateway_url, **kwargs)
 	response.raise_for_status()
