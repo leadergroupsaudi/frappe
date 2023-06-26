@@ -128,8 +128,10 @@ def send_request(gateway_url, params, headers=None, use_post=False, use_json=Fal
 
 	if use_post:
 		response = requests.post(gateway_url, **kwargs)
-		if response.status_code!=200:
-				frappe.throw(response.text)
+		if response.status_code < 200 and response.status_code > 299:
+			frappe.throw(
+				_("Error While Sendin SMS {0}").format(response.text),
+			)
 	else:
 		response = requests.get(gateway_url, **kwargs)
 	response.raise_for_status()
