@@ -947,7 +947,7 @@ Object.assign(frappe.utils, {
 
 		
 		if(! ALLOWED_MIMETYPES.includes(parts[0].split(";")[0])){
-			frappe.throw("You can only upload CSV or XLSX documents.")
+			frappe.throw(__("You can only upload CSV or XLSX documents."))
 		} 
 		try {
 			const escaped = escape(decoded);
