@@ -936,10 +936,19 @@ Object.assign(frappe.utils, {
 		}
 	},
 	get_decoded_string(dataURI) {
+		let ALLOWED_MIMETYPES = [
+			"data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			"data:text/csv"
+		]
 		// decodes base64 to string
 		let parts = dataURI.split(',');
 		const encoded_data = parts[1];
 		let decoded = atob(encoded_data);
+
+		
+		if(! ALLOWED_MIMETYPES.includes(parts[0].split(";")[0])){
+			frappe.throw("You can only upload CSV or XLSX documents.")
+		} 
 		try {
 			const escaped = escape(decoded);
 			decoded = decodeURIComponent(escaped);
