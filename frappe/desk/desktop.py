@@ -186,7 +186,7 @@ class Workspace:
 			return name in self.can_read or [] and name in self.restricted_doctypes or []
 		if item_type == "page":
 			return name in self.allowed_pages and name in self.restricted_pages
-		if item_type == "report" and self.is_mobile ==False:
+		if item_type == "report":
 			return name in self.allowed_reports
 		if item_type == "help":
 			return True
@@ -350,10 +350,9 @@ class Workspace:
 
 		return steps
 
-#is_mobile is custom parameter for mobile api
 @frappe.whitelist()
 @frappe.read_only()
-def get_desktop_page(page,is_mobile=False):
+def get_desktop_page(page):
 	"""Applies permissions, customizations and returns the configruration for a page
 	on desk.
 
@@ -365,9 +364,6 @@ def get_desktop_page(page,is_mobile=False):
 	"""
 	try:
 		wspace = Workspace(page)
-		#custom code that we remove later also remove condition from is_item_allowed fn
-		wspace.is_mobile = is_mobile
-		#end here also remove condition from is_item_allowed
 		wspace.build_workspace()
 		return {
 			"charts": wspace.charts,
