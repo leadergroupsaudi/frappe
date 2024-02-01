@@ -73,7 +73,11 @@ def execute_cmd(cmd, from_async=False):
 	try:
 		method = get_attr(cmd)
 	except Exception as e:
-		frappe.throw(_("Failed to get method for command {0} with {1}").format(cmd, e))
+		show_traceback = frappe.db.get_single_value("System Settings","show_traceback_error_to_the_developer",cache=True)
+		if show_traceback:
+			frappe.throw(_("Failed to get method for command {0} with {1}").format(cmd, e))
+		else:
+			return "Internal Server Error"
 
 	if from_async:
 		method = method.queue
