@@ -170,6 +170,10 @@ def update_password(user, pwd, doctype="User", fieldname="password", logout_all_
 		from frappe.sessions import clear_sessions
 
 		clear_sessions(user=user, keep_current=True, force=True)
+		#Set OAuth Bearer Token for mobile app use
+		oauth_bearer_token=frappe.db.get_all("OAuth Bearer Token",filters={'user':user,'status':'Active'},fields=['name'])
+		for token in oauth_bearer_token:
+			frappe.db.set_value("OAuth Bearer Token", token.get('name'), "status", "Revoked")
 
 
 def delete_all_passwords_for(doctype, name):
