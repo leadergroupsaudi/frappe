@@ -354,8 +354,15 @@ def handle_exception(e):
 			traceback = ""
 
 		frappe.respond_as_web_page(
-			"Server Error", traceback, http_status_code=http_status_code, indicator_color="red", width=640
+			"Server Error", _("Internal Server Error"), http_status_code=http_status_code, indicator_color="red", width=640
 		)
+		import inspect
+
+		error_log =  frappe.new_doc("Error Log")
+		error_log.method = inspect.stack()[1][3] #called method name will be fetched
+		error_log.error = traceback
+		error_log.save(ignore_permissions=True)
+		
 		return_as_message = True
 
 	if e.__class__ == frappe.AuthenticationError:
