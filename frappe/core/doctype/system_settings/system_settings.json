@@ -39,6 +39,7 @@
   "deny_multiple_sessions",
   "allow_login_using_mobile_number",
   "allow_login_using_user_name",
+  "allow_login_using_third_party_app",
   "allow_error_traceback",
   "strip_exif_metadata_from_uploaded_images",
   "allow_older_web_view_links",
@@ -518,12 +519,18 @@
    "fieldname": "email_retry_limit",
    "fieldtype": "Int",
    "label": "Email Retry Limit"
+  },
+  {
+   "default": "0",
+   "fieldname": "allow_login_using_third_party_app",
+   "fieldtype": "Check",
+   "label": "Allow Login using Third Party App"
   }
  ],
  "icon": "fa fa-cog",
  "issingle": 1,
  "links": [],
- "modified": "2022-06-21 13:55:04.796152",
+ "modified": "2024-02-13 08:01:51.073665",
  "modified_by": "Administrator",
  "module": "Core",
  "name": "System Settings",

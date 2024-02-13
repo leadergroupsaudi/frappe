@@ -30,15 +30,27 @@ def resolve_redirect(path):
 		return
 
 	redirect_to = frappe.cache().hget("website_redirects", path)
-
+	allow_login = frappe.db.get_single_value("System Settings", "allow_login_using_third_party_app")
 	if redirect_to:
-		frappe.flags.redirect_location = redirect_to
-		raise frappe.Redirect
-
+		if allow_login:
+			"""Redirect to Ragmy URL"""
+			if frappe.request.cookies.get('sid') in ("Guest",None):
+				frappe.flags.redirect_location = redirect_to
+				raise frappe.Redirect
+		else:
+			frappe.flags.redirect_location = redirect_to
+			raise frappe.Redirect
 	for rule in redirects:
 		pattern = rule["source"].strip("/ ") + "$"
 		if re.match(pattern, path):
 			redirect_to = re.sub(pattern, rule["target"], path)
-			frappe.flags.redirect_location = redirect_to
-			frappe.cache().hset("website_redirects", path, redirect_to)
-			raise frappe.Redirect
+			if allow_login:
+				"""Redirect to Ragmy URL"""
+				if frappe.request.cookies.get('sid') in ("Guest",None):
+					frappe.flags.redirect_location = redirect_to
+					frappe.cache().hset("website_redirects", path, redirect_to)
+					raise frappe.Redirect
+			else:
+				frappe.flags.redirect_location = redirect_to
+				frappe.cache().hset("website_redirects", path, redirect_to)
+				raise frappe.Redirect   
