@@ -112,9 +112,19 @@ def has_permission(
 			doc = frappe.get_doc(meta.name, doc)
 		perm = get_doc_permissions(doc, user=user, ptype=ptype).get(ptype)
 		if not perm:
-			push_perm_check_log(
-				_("User {0} does not have access to this document").format(frappe.bold(user))
-			)
+			# this is customized for EPM, based on EPM Settings
+			disable_user_restriction = False
+			installed_app = frappe.db.exists("Installed Application",{"app_name":"foxerp_epm"})
+			if installed_app:
+				disable_user_restriction = frappe.db.get_single_value("EPM Settings", "disable_user_restriction_message")
+				if disable_user_restriction and doc.doctype == "User":
+					push_perm_check_log(
+						_("Logged in user does not have access to this document")
+					)
+			if not disable_user_restriction:
+				push_perm_check_log(
+					_("User {0} does not have access to this document").format(frappe.bold(user))
+				)
 	else:
 		if ptype == "submit" and not cint(meta.is_submittable):
 			push_perm_check_log(_("Document Type is not submittable"))

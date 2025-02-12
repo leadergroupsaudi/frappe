@@ -37,6 +37,14 @@ def getdoc(doctype, name, user=None):
 	run_onload(doc)
 
 	if not doc.has_permission("read"):
+		# this is customized for EPM, based on EPM Settings
+		installed_app = frappe.db.exists("Installed Application",{"app_name":"foxerp_epm"})
+		if installed_app:
+			disable_user_restriction = frappe.db.get_single_value("EPM Settings", "disable_user_restriction_message")
+			if disable_user_restriction and doc.doctype == "User":
+				frappe.flags.error_message = _("Insufficient Permission for the selected user")
+				raise frappe.PermissionError()
+			
 		frappe.flags.error_message = _("Insufficient Permission for {0}").format(
 			frappe.bold(doctype + " " + name)
 		)
