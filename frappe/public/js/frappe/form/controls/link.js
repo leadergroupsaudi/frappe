@@ -17,7 +17,7 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 				<a class="btn-clear" style="display: inline-block;" title="${__("Clear Link")}">
 					${frappe.utils.icon("close", "xs", "es-icon")}
 				</a>
-				<a class="btn-open" style="display: inline-block;" title="${__("Open Link")}">
+				<a class="btn-open" tabIndex='-1' style="display: inline-block;" title="${__("Open Link")}">
 					${frappe.utils.icon("arrow-right", "xs")}
 				</a>
 			</span>
@@ -383,6 +383,16 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 				// hide link arrow to doctype if none is set
 				me.$link.toggle(false);
 			}
+
+			const dropdown = this.awesomplete.ul;
+			const dropdownRect = dropdown.getBoundingClientRect();
+			const viewportWidth = window.innerWidth;
+
+			if (dropdownRect.right > viewportWidth) {
+				dropdown.classList.add("awesomplete-align-right");
+			} else {
+				dropdown.classList.remove("awesomplete-align-right");
+			}
 		});
 
 		this.$input.on("awesomplete-close", (e) => {
@@ -400,12 +410,25 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 
 			me.autocomplete_open = false;
 
-			// prevent selection on tab
-			let TABKEY = 9;
-			if (e.keyCode === TABKEY) {
-				e.preventDefault();
-				me.awesomplete.close();
-				return false;
+			// prevent selection on tab/enter if input doesn't match
+			const TABKEY = 9;
+			const ENTERKEY = 13;
+			const event = o.originalEvent;
+			if (event && [TABKEY, ENTERKEY].includes(event.keyCode)) {
+				const input = me.get_label_value().toLowerCase();
+				if (!input && event.keyCode === TABKEY) {
+					e.preventDefault();
+					me.awesomplete.close();
+					return false;
+				} else if (input && !me.input_matches_item(input, item)) {
+					e.preventDefault();
+
+					// prevent browser default tab behavior (focus change)
+					if (event.preventDefault) {
+						event.preventDefault();
+					}
+					return false;
+				}
 			}
 
 			if (item.action) {
@@ -433,6 +456,20 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 		});
 	}
 
+	/**
+	 * Checks if the current input matches any property (label, value, or description)
+	 * of the provided autocomplete item (case-insensitive).
+	 *
+	 * @param {string} input - The current input value.
+	 * @param {Object} item - The autocomplete item to check against.
+	 * @returns {boolean} - True if input matches the label, value, or description.
+	 */
+	input_matches_item(input, item) {
+		const item_label = (this.get_translated(item.label || item.value) || "").toLowerCase();
+		const item_description = (item.description || "").toLowerCase();
+		return input && (item_label.includes(input) || item_description.includes(input));
+	}
+
 	show_untranslated() {
 		let value = this.get_input_value();
 		this.is_translatable() && this.set_input_value(value);
@@ -447,7 +484,9 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			if (newArr.length === 0) return [currElem];
 			let element_with_same_value = newArr.find((e) => e.value === currElem.value);
 			if (element_with_same_value) {
-				element_with_same_value.description += `, ${currElem.description}`;
+				if (currElem.description) {
+					element_with_same_value.description += `, ${currElem.description}`;
+				}
 				return [...newArr];
 			}
 			return [...newArr, currElem];
@@ -509,10 +548,16 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 				filter[3].push("...");
 			}
 
-			let value =
-				filter[3] == null || filter[3] === "" ? __("empty") : String(__(filter[3]));
+			let value;
+			if (filter[3] && Array.isArray(filter[3])) {
+				value = filter[3].map((v) => String(__(v)).bold()).join(", ");
+			} else if (filter[3] == null || filter[3] === "") {
+				value = __("empty").bold();
+			} else {
+				value = String(__(filter[3])).bold();
+			}
 
-			return [__(label).bold(), __(filter[2]), value.bold()].join(" ");
+			return [__(label).bold(), __(filter[2]), value].join(" ");
 		}
 
 		let filter_string = filter_array.map(get_filter_description).join(", ");
@@ -690,7 +735,10 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 					fields: columns_to_fetch,
 				})
 				.then((response) => {
-					if (!this.docname || !columns_to_fetch.length) {
+					if (this.frm && !this.docname) {
+						return response.name;
+					}
+					if (!columns_to_fetch.length) {
 						return response.name;
 					}
 					update_dependant_fields(response);
@@ -734,6 +782,7 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 					"Float",
 					"Int",
 					"Date",
+					"Datetime",
 					"Select",
 					"Duration",
 					"Time",

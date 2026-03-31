@@ -153,6 +153,9 @@ def get_context(context):
 		else:
 			context.template = "website/doctype/web_form/templates/web_form.html"
 
+		# By default, assume no delete permissions
+		context.has_delete_permission = False
+
 		# check permissions
 		if frappe.form_dict.name:
 			assert isinstance(frappe.form_dict.name, str | int)
@@ -172,6 +175,10 @@ def get_context(context):
 				frappe.throw(
 					_("You don't have the permissions to access this document"), frappe.PermissionError
 				)
+
+			context.has_delete_permission = frappe.has_permission(
+				self.doc_type, "delete", frappe.form_dict.name
+			)
 
 		if frappe.local.path == self.route:
 			path = f"/{self.route}/list" if self.show_list else f"/{self.route}/new"
@@ -251,7 +258,7 @@ def get_context(context):
 		context.boot = get_boot_data()
 		context.boot["link_title_doctypes"] = frappe.boot.get_link_title_doctypes()
 
-		context.webform_banner_image = self.banner_image
+		context.webform_banner_image = context.get("banner_image") or self.banner_image
 		context.pop("banner_image", None)
 
 	def add_metatags(self, context):
@@ -276,8 +283,8 @@ def get_context(context):
 			"Cancel",
 			"Discard:Button in web form",
 			"Edit:Button in web form",
-			"See previous responses:Button in web form",
-			"Edit your response:Button in web form",
+			"See previous responses::Button in web form",
+			"Edit your response::Button in web form",
 			"Are you sure you want to discard the changes?",
 			"Mandatory fields required::Error message in web form",
 			"Invalid values for fields::Error message in web form",
@@ -393,7 +400,7 @@ def get_context(context):
 			context.parents = frappe.safe_eval(self.breadcrumbs, {"_": _})
 
 		if self.show_list and frappe.form_dict.is_new:
-			context.title = _("New {0}").format(context.title)
+			context.title = _("New {0}").format(_(context.title))
 
 		context.has_header = (frappe.form_dict.name or frappe.form_dict.is_new) and (
 			frappe.session.user != "Guest" or not self.login_required
@@ -426,7 +433,9 @@ def get_context(context):
 			context.reference_doc = frappe.get_doc(self.doc_type, context.doc_name)
 			context.web_form_title = context.title
 			context.title = (
-				strip_html(context.reference_doc.get(context.reference_doc.meta.get_title_field()))
+				strip_html(
+					frappe.cstr(context.reference_doc.get(context.reference_doc.meta.get_title_field()))
+				)
 				or context.doc_name
 			)
 			context.reference_doc.add_seen()
@@ -595,6 +604,10 @@ def accept(web_form, data):
 		# insert
 		doc = frappe.new_doc(doctype)
 
+	# Set ignore_mandatory flag if allow_incomplete is enabled
+	if web_form.allow_incomplete:
+		doc.flags.ignore_mandatory = True
+
 	# set values
 	for field in web_form.web_form_fields:
 		fieldname = field.fieldname
@@ -625,7 +638,7 @@ def accept(web_form, data):
 		if web_form.login_required and frappe.session.user == "Guest":
 			frappe.throw(_("You must login to submit this form"))
 
-		ignore_mandatory = True if files else False
+		ignore_mandatory = True if (files or web_form.allow_incomplete) else False
 
 		doc.insert(ignore_permissions=True, ignore_mandatory=ignore_mandatory)
 
