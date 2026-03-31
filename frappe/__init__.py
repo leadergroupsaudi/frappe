@@ -51,7 +51,7 @@ from .utils.jinja import (
 )
 from .utils.lazy_loader import lazy_import
 
-__version__ = "15.74.2"
+__version__ = "15.103.2"
 __title__ = "Frappe Framework"
 
 # This if block is never executed when running the code. It is only used for
@@ -87,6 +87,7 @@ controllers = {}
 local = Local()
 cache = None
 STANDARD_USERS = ("Guest", "Administrator")
+SITE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
 
 _one_time_setup = {}
 _dev_server = int(sbool(os.environ.get("DEV_SERVER", False)))
@@ -112,6 +113,7 @@ def _(msg: str, lang: str | None = None, context: str | None = None) -> str:
 	if not lang:
 		lang = local.lang
 
+	all_translations = get_all_translations(lang)
 	non_translated_string = msg
 
 	if is_html(msg):
@@ -119,18 +121,23 @@ def _(msg: str, lang: str | None = None, context: str | None = None) -> str:
 
 	# msg should always be unicode
 	msg = as_unicode(msg).strip()
+	msg_with_html = as_unicode(non_translated_string).strip()
+	msg_list = [msg, msg_with_html]
 
-	translated_string = ""
+	for msg in msg_list:
+		translated_string = ""
 
-	all_translations = get_all_translations(lang)
-	if context:
-		string_key = f"{msg}:{context}"
-		translated_string = all_translations.get(string_key)
+		if context:
+			string_key = f"{msg}:{context}"
+			translated_string = all_translations.get(string_key)
 
-	if not translated_string:
-		translated_string = all_translations.get(msg)
+		if not translated_string:
+			translated_string = all_translations.get(msg)
 
-	return translated_string or non_translated_string
+		if translated_string:
+			return translated_string
+
+	return non_translated_string
 
 
 def _lt(msg: str, lang: str | None = None, context: str | None = None):
@@ -193,6 +200,9 @@ def init(site: str, sites_path: str = ".", new_site: bool = False, force=False) 
 	"""Initialize frappe for the current site. Reset thread locals `frappe.local`"""
 	if getattr(local, "initialised", None) and not force:
 		return
+
+	if site and not SITE_NAME_PATTERN.match(site):
+		raise ValueError(f"Invalid site name `{site}`")
 
 	local.error_log = []
 	local.message_log = []
@@ -863,7 +873,7 @@ def is_whitelisted(method):
 	from frappe.utils import sanitize_html
 
 	is_guest = session["user"] == "Guest"
-	if method not in whitelisted or is_guest and method not in guest_methods:
+	if method not in whitelisted or (is_guest and method not in guest_methods):
 		summary = _("You are not permitted to access this resource. Login to access")
 		detail = _("Function {0} is not whitelisted.").format(bold(f"{method.__module__}.{method.__name__}"))
 		msg = f"<details><summary>{summary}</summary>{detail}</details>"
@@ -1560,8 +1570,8 @@ def get_installed_apps(*, _ensure_on_bench=False) -> list[str]:
 
 
 def get_doc_hooks():
-	"""Returns hooked methods for given doc. It will expand the dict tuple if required."""
-	if not hasattr(local, "doc_events_hooks"):
+	"""Return hooked methods for given doc. Expand the dict tuple if required."""
+	if not getattr(local, "doc_events_hooks", None):
 		hooks = get_hooks("doc_events", {})
 		out = {}
 		for key, value in hooks.items():
@@ -2147,6 +2157,9 @@ def attach_print(
 
 	print_settings = db.get_singles_dict("Print Settings")
 
+	if print_letterhead and not letterhead:
+		letterhead = get_cached_value("Letter Head", {"is_default": 1}, "name")
+
 	kwargs = dict(
 		print_format=print_format,
 		style=style,
@@ -2158,16 +2171,27 @@ def attach_print(
 
 	local.flags.ignore_print_permissions = True
 
+	is_weasyprint_print_format = False
+	if print_format and print_format != "Standard":
+		print_format_doc = get_cached_doc("Print Format", print_format)
+		is_weasyprint_print_format = print_format_doc.get("print_format_builder_beta")
+
 	with print_language(lang or local.lang):
 		content = ""
 		if cint(print_settings.send_print_as_pdf):
 			ext = ".pdf"
-			kwargs["as_pdf"] = True
-			content = (
-				get_pdf(html, options={"password": password} if password else None)
-				if html
-				else get_print(doctype, name, **kwargs)
-			)
+			if html:
+				content = get_pdf(html, options={"password": password} if password else None)
+			elif is_weasyprint_print_format:
+				from frappe.utils.weasyprint import PrintFormatGenerator
+
+				doc_obj = doc or get_cached_doc(doctype, name)
+				letterhead_name = letterhead if print_letterhead else None
+				generator = PrintFormatGenerator(print_format, doc_obj, letterhead_name)
+				content = generator.render_pdf()
+			else:
+				kwargs["as_pdf"] = True
+				content = get_print(doctype, name, **kwargs)
 		else:
 			ext = ".html"
 			content = html or scrub_urls(get_print(doctype, name, **kwargs)).encode("utf-8")
@@ -2299,16 +2323,30 @@ def logger(module=None, with_more_info=False, allow_site=True, filter=None, max_
 	)
 
 
-def get_desk_link(doctype, name, show_title_with_name=False):
+def get_desk_link(doctype, name, show_title_with_name=False, open_in_new_tab=False):
+	from urllib.parse import quote
+
 	meta = get_meta(doctype)
 	title = get_value(doctype, name, meta.get_title_field())
 
-	if show_title_with_name and name != title:
-		html = '<a href="/app/Form/{doctype}/{name}" style="font-weight: bold;">{doctype_local} {name}: {title_local}</a>'
-	else:
-		html = '<a href="/app/Form/{doctype}/{name}" style="font-weight: bold;">{doctype_local} {title_local}</a>'
+	target_attr = ' target="_blank"' if open_in_new_tab else ""
 
-	return html.format(doctype=doctype, name=name, doctype_local=_(doctype), title_local=_(title))
+	# encode for href
+	encoded_name = quote(name)
+
+	if show_title_with_name and name != title:
+		html = '<a href="/app/Form/{doctype}/{encoded_name}"{target} style="font-weight: bold;">{doctype_local} {name}: {title_local}</a>'
+	else:
+		html = '<a href="/app/Form/{doctype}/{encoded_name}"{target} style="font-weight: bold;">{doctype_local} {title_local}</a>'
+
+	return html.format(
+		doctype=doctype,
+		name=name,
+		encoded_name=encoded_name,
+		doctype_local=_(doctype),
+		title_local=_(title),
+		target=target_attr,
+	)
 
 
 def bold(text):
@@ -2408,7 +2446,13 @@ def is_setup_complete():
 	if not frappe.db.table_exists("Installed Application"):
 		return is_setup_complete
 
-	if all(frappe.get_all("Installed Application", {"has_setup_wizard": 1}, pluck="is_setup_complete")):
+	if all(
+		frappe.get_all(
+			"Installed Application",
+			{"app_name": ("in", ["frappe", "erpnext"])},
+			pluck="is_setup_complete",
+		)
+	):
 		is_setup_complete = True
 
 	return is_setup_complete

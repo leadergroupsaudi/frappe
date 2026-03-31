@@ -456,6 +456,13 @@ class Communication(Document, CommunicationEmailMixin):
 
 	# Timeline Links
 	def set_timeline_links(self):
+		# Skip timeline links if a "Sent" communication already exists
+		# else will create duplicate timeline entries
+		if self.sent_or_received == "Received" and self.find_one_by_filters(
+			message_id=self.message_id, email_account=self.email_account, sent_or_received="Sent"
+		):
+			return
+
 		contacts = []
 		create_contact_enabled = self.email_account and frappe.db.get_value(
 			"Email Account", self.email_account, "create_contact"
@@ -480,7 +487,14 @@ class Communication(Document, CommunicationEmailMixin):
 			self.add_link(doctype, name)
 
 	def add_link(self, link_doctype, link_name, autosave=False):
-		self.append("timeline_links", {"link_doctype": link_doctype, "link_name": link_name})
+		self.append(
+			"timeline_links",
+			{
+				"link_doctype": link_doctype,
+				"link_name": link_name,
+				"communication_date": self.communication_date,
+			},
+		)
 
 		if autosave:
 			self.save(ignore_permissions=True)
@@ -499,9 +513,13 @@ class Communication(Document, CommunicationEmailMixin):
 
 def on_doctype_update():
 	"""Add indexes in `tabCommunication`"""
-	frappe.db.add_index("Communication", ["reference_doctype", "reference_name"])
 	frappe.db.add_index("Communication", ["status", "communication_type"])
 	frappe.db.add_index("Communication", ["message_id(140)"])
+	frappe.db.add_index(
+		"Communication",
+		["reference_doctype", "reference_name", "communication_date", "communication_type"],
+		index_name="comm_ref_type_date_idx",
+	)
 
 
 def has_permission(doc, ptype, user=None, debug=False):
@@ -531,7 +549,7 @@ def get_permission_query_conditions_for_communication(user):
 		if not accounts:
 			return """`tabCommunication`.communication_medium!='Email'"""
 
-		email_accounts = ['"%s"' % account.get("email_account") for account in accounts]
+		email_accounts = ['"{}"'.format(account.get("email_account")) for account in accounts]
 		return """`tabCommunication`.email_account in ({email_accounts})""".format(
 			email_accounts=",".join(email_accounts)
 		)
@@ -655,9 +673,7 @@ def update_parent_document_on_communication(doc):
 
 		# if status has a "Open" option and status is "Replied", then update the status for received communication
 		if (
-			("Open" in options)
-			and parent.status == "Replied"
-			and doc.sent_or_received == "Received"
+			(("Open" in options) and parent.status == "Replied" and doc.sent_or_received == "Received")
 			or (
 				parent.doctype == "Issue" and ("Open" in options) and doc.sent_or_received == "Received"
 			)  # For 'Issue', current status is not considered.

@@ -61,7 +61,6 @@ class TestTranslation(FrappeTestCase):
 		self.assertNotEqual(_(source, lang="de"), _(source, lang="es"))
 
 	def test_html_content_data_translation(self):
-		# ruff: noqa: RUF001
 		source = """
 			<span style="color: rgb(51, 51, 51); font-family: &quot;Amazon Ember&quot;, Arial, sans-serif; font-size:
 			small;">MacBook Air lasts up to an incredible 12 hours between charges. So from your morning coffee to
@@ -91,6 +90,13 @@ class TestTranslation(FrappeTestCase):
 		"""
 
 		self.assertTrue(_(source), target)
+
+	def test_html_message_translations(self):
+		"""Test fallback for messages w/ HTML Tags"""
+		message = "Hide descendant records of <b>For Value</b>."
+		translated_message = "隐藏下层节点<b>值</b>"
+		create_translation("zh", message, translated_message)
+		self.assertEqual(_(message, lang="zh"), translated_message)
 
 
 def get_translation_data():
