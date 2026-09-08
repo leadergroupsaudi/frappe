@@ -276,11 +276,20 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 					// immediately show from cache
 					me.awesomplete.list = me.$input.cache[doctype][term];
 				}
+				var reference_doctype = me.get_reference_doctype() || "";
+				var docfield_parent =
+					me.df?.parent || reference_doctype || (me.frm && me.frm.doctype) || "";
+				var meta_df =
+					docfield_parent && me.df?.fieldname
+						? frappe.meta.get_docfield(docfield_parent, me.df.fieldname)
+						: null;
+
 				var args = {
 					txt: term,
 					doctype: doctype,
-					ignore_user_permissions: me.df.ignore_user_permissions,
-					reference_doctype: me.get_reference_doctype() || "",
+					ignore_user_permissions:
+						me.df?.ignore_user_permissions || meta_df?.ignore_user_permissions,
+					reference_doctype: reference_doctype,
 					page_length: cint(frappe.boot.sysdefaults?.link_field_results_limit) || 10,
 				};
 
@@ -587,11 +596,6 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			return obj;
 		};
 
-		// apply link field filters
-		if (this.df.link_filters && !!this.df.link_filters.length) {
-			this.apply_link_field_filters();
-		}
-
 		if (this.get_query || this.df.get_query) {
 			var get_query = this.get_query || this.df.get_query;
 			if ($.isPlainObject(get_query)) {
@@ -653,17 +657,19 @@ frappe.ui.form.ControlLink = class ControlLink extends frappe.ui.form.ControlDat
 			if (!args.filters) args.filters = {};
 			$.extend(args.filters, this.df.filters);
 		}
+
+		if (this.df.link_filters && !!this.df.link_filters.length) {
+			args.filters = { ...(args.filters || {}), ...this.apply_link_field_filters() };
+		}
 	}
 
 	apply_link_field_filters() {
-		let link_filters = JSON.parse(this.df.link_filters);
-		let filters = this.parse_filters(link_filters);
-		// take filters from the link field and add to the query
-		this.get_query = function () {
-			return {
-				filters,
-			};
-		};
+		try {
+			return this.parse_filters(JSON.parse(this.df.link_filters));
+		} catch (e) {
+			console.error("Invalid link_filters JSON:", this.df.link_filters, e);
+			return {};
+		}
 	}
 
 	parse_filters(link_filters) {

@@ -366,13 +366,21 @@ def get_file_path(file_name):
 		file_path = "/files/" + file_path
 
 	if file_path.startswith("/private/files/"):
-		file_path = get_files_path(*file_path.split("/private/files/", 1)[1].split("/"), is_private=1)
+		is_private = 1
+		file_path = get_files_path(
+			*file_path.split("/private/files/", 1)[1].split("/"), is_private=is_private
+		)
 
 	elif file_path.startswith("/files/"):
+		is_private = 0
 		file_path = get_files_path(*file_path.split("/files/", 1)[1].split("/"))
 
 	else:
 		frappe.throw(_("There is some problem with the file url: {0}").format(file_path))
+
+	base_path = os.path.realpath(get_files_path(is_private=is_private))
+	if os.path.commonpath((base_path, os.path.realpath(file_path))) != base_path:
+		frappe.throw(_("Cannot access file path {0}").format(file_path))
 
 	return file_path
 
@@ -399,14 +407,20 @@ def get_file_name(fname, optional_suffix):
 
 
 @frappe.whitelist()
-def add_attachments(doctype, name, attachments):
+def add_attachments(doctype: str, name: str | int, attachments: str | list[str]):
 	"""Add attachments to the given DocType"""
+	if not frappe.has_permission(doctype, "write", doc=name):
+		frappe.throw(_("You need write permissions to add attachments to this record."))
+
 	if isinstance(attachments, str):
 		attachments = json.loads(attachments)
 	# loop through attachments
 	files = []
 	for a in attachments:
 		if isinstance(a, str):
+			if not frappe.has_permission("File", ptype="read", doc=a):
+				frappe.throw(_("You don't have permission to read/attach the file {0}.").format(a))
+
 			attach = frappe.db.get_value(
 				"File", {"name": a}, ["file_name", "file_url", "is_private"], as_dict=1
 			)
@@ -420,7 +434,7 @@ def add_attachments(doctype, name, attachments):
 
 
 def is_safe_path(path: str) -> bool:
-	if path.startswith(("http://", "https://")):
+	if path.startswith(("http://", "https://", "/api/method/")):
 		return True
 
 	basedir = frappe.get_site_path()
